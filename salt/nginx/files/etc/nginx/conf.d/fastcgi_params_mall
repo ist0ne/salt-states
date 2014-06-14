@@ -1,0 +1,18 @@
+fastcgi_param SRV_CACHE_DIR	"{{ salt['pillar.get']('vhostscachedir', '/var/www/cache') }}/www.mall.com";
+fastcgi_param SRV_NDATA_DIR     "/data1/vhosts/static.mall.com/htdocs";
+fastcgi_param SRV_NDATA_CACHE_URL "http://static.mall.com";
+fastcgi_param SRV_SEARCHD_HOST "172.16.100.61 172.16.100.62";
+
+fastcgi_param SRV_DB_HOST	"172.16.100.51";
+fastcgi_param SRV_DB_PORT	"3306";
+fastcgi_param SRV_DB_USER	"mall";
+fastcgi_param SRV_DB_PASS	"Aspintour4_bdQ5";
+fastcgi_param SRV_DB_NAME	"www_mall_com";
+fastcgi_param SRV_DB_HOST_R	"172.16.100.52";
+fastcgi_param SRV_DB_PORT_R	"3306";
+fastcgi_param SRV_DB_USER_R	"mall";
+fastcgi_param SRV_DB_PASS_R	"Aspintour4_bdQ5";
+fastcgi_param SRV_DB_NAME_R	"www_mall_com";
+
+fastcgi_param SRV_MEMCACHED_KEY_PREFIX  "www-";
+fastcgi_param SRV_MEMCACHED_SERVERS	"172.16.100.41:11211 172.16.100.42:11211";

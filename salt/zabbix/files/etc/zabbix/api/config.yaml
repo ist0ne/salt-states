@@ -1,0 +1,7 @@
+Monitors_DIR: {{Monitors_DIR}}
+Templates_DIR: {{Templates_DIR}}
+Zabbix_URL: {{Zabbix_URL}}
+Zabbix_User: {{Zabbix_User}}
+Zabbix_Pass: {{Zabbix_Pass}}
+Zabbix_Donot_Unlink_Template:
+  - 'Template OS Linux'

@@ -1,0 +1,71 @@
+{% set datadir = salt['pillar.get']('mysql:datadir', '/var/lib/mysql') -%}
+[mysqld]
+bind-address = {{grains['ipv4'][0]}}
+port            = 3306
+pid-file = mysqld.pid
+socket          = /tmp/mysql.sock
+key_buffer = 1024M
+max_allowed_packet = 100M
+table_cache = 1024
+sort_buffer_size = 2M
+read_buffer_size = 2M
+read_rnd_buffer_size = 8M
+myisam_sort_buffer_size = 64M
+query_cache_size = 128M
+tmp_table_size = 256M
+max_connections = 2000
+skip-name-resolve
+server-id       = 30
+relay-log=relay-log
+log-queries-not-using-indexes = 0
+log-bin = mysql-bin
+log-error = log-error.log
+max_heap_table_size = 256M
+datadir={{datadir}}
+default_storage_engine=innodb
+innodb_data_home_dir={{datadir}}
+innodb_data_file_path=ibdata1:10M:autoextend
+innodb_log_group_home_dir={{datadir}}
+innodb_buffer_pool_size=2048M
+innodb_additional_mem_pool_size=50M
+innodb_log_file_size=100M
+innodb_log_buffer_size=8M
+innodb_flush_log_at_trx_commit=1
+innodb_lock_wait_timeout=50
+innodb_file_per_table
+slave-skip-errors = 1062
+skip-slave-start
+read_only = 1
+thread_cache_size = 32
+thread_concurrency= 16
+wait_timeout = 30
+interactive_timeout = 30
+open-files-limit=10000
+net_read_timeout=120
+net_write_timeout=120
+slow_query_log_file = slow-queries.log
+slow_launch_time=2
+slow_query_log=1
+
+[mysqldump]
+quick
+max_allowed_packet = 16M
+
+[mysql]
+no-auto-rehash
+prompt={{salt['pillar.get']('mysql:role', 'mysql')}}::[{{grains['ipv4'][0]}}]\\n\\u@\\p::[\\d]\\n->\\_
+
+[isamchk]
+key_buffer = 256M
+sort_buffer_size = 256M
+read_buffer = 2M
+write_buffer = 2M
+
+[myisamchk]
+key_buffer = 256M
+sort_buffer_size = 256M
+read_buffer = 2M
+write_buffer = 2M
+
+[mysqlhotcopy]
+interactive-timeout

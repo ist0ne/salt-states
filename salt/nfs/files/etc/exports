@@ -1,0 +1,3 @@
+{% for dir, right in salt['pillar.get']('exports', {}).iteritems() -%}
+{{dir}} {{right}}
+{% endfor -%}

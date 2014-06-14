@@ -1,0 +1,26 @@
+[mall]
+name = mall $releasever - $basearch
+baseurl = http://172.16.100.81/mirrors/$releasever/$basearch/
+gpgcheck=0
+priority=1
+
+[epel]
+name=Extra Packages for Enterprise Linux 6 - $basearch
+#baseurl=http://download.fedoraproject.org/pub/epel/6/$basearch
+mirrorlist=https://mirrors.fedoraproject.org/metalink?repo=epel-6&arch=$basearch
+failovermethod=priority
+enabled=1
+gpgcheck=0
+priority=10
+
+[nginx]
+name = nginx $releasever - $basearch
+baseurl = http://nginx.org/packages/rhel/$releasever/$basearch/
+gpgcheck=0
+priority=1
+
+[varnish]
+name = varnish $releasever - $basearch
+baseurl = http://repo.varnish-cache.org/redhat/varnish-3.0/el$releasever/$basearch/
+gpgcheck=0
+priority=1

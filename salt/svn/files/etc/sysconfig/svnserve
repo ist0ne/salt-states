@@ -1,0 +1,1 @@
+OPTIONS='-r {{salt['pillar.get']('repodir', '/var/svn')}}'

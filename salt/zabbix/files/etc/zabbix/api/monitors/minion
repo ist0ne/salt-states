@@ -1,0 +1,18 @@
+IP: {{IP}}
+Hostgroup:
+  {% for each_hostgroup in Hostgroup -%}
+  - {{each_hostgroup}}
+  {% endfor %}
+Usermacros:
+  - '{$MAX_CPULOAD}': {{ grains['num_cpus'] * 2 + 2 }}
+  - '{$OK_CPULOAD}': {{ grains['num_cpus'] * 2 }}
+Templates:
+  {% for each_template in pillar.get('zabbix-base-templates', []) -%}
+  - {{ each_template }}
+  {% endfor -%}
+  {% for each_role in Roles -%}
+  {% if each_role in Templates -%}
+  - {{ pillar['zabbix-templates'][each_role] }}
+  {% endif -%}
+  {% endfor -%}
+

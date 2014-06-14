@@ -1,0 +1,4 @@
+include:
+  - limits
+  - haproxy
+  - keepalived
