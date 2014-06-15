@@ -11,6 +11,7 @@ mysql:
       - MySQL-client
       - MySQL-devel
     - require:
+      - file: mysql
       - cmd: remove-mysql-libs
   service.running:
     - name: mysql
@@ -20,6 +21,9 @@ mysql:
     - watch:
       - pkg: mysql
       - file: /etc/my.cnf
+  file.managed:
+    - name: /etc/yum.repos.d/mysql.repo
+    - source: salt://mysql/files/etc/yum.repo.d/mysql.repo
   cmd.wait:
     - name: mkdir -p {{datadir}} && cp -r /var/lib/mysql/* {{datadir}}/ && chown -R mysql.mysql {{datadir}}
     - unless: test -d {{datadir}}

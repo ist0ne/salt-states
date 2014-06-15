@@ -4,7 +4,7 @@
 * [Saltstack安装](http://yoyolive.com/saltstack/2014/05/28/saltstack-install.html)
 * [基础服务部署](http://yoyolive.com/saltstack/2014/05/29/saltstack-base-service.html)
 * [服务部署](http://yoyolive.com/saltstack/2014/06/14/saltstack-service.html)
-* [基于Saltstack部署系统搭建](http://yoyolive.com/saltstack/2014/06/15/saltstack-publish.html)
+* [代码部署系统搭建](http://yoyolive.com/saltstack/2014/06/15/saltstack-publish.html)
 * [自动化监控](http://yoyolive.com/saltstack/2014/06/16/saltstack-pzabbix_monitor.html)
 * [Salt模块的扩展](http://yoyolive.com/saltstack/2014/06/17/saltstack-expand.html)
 
@@ -597,9 +597,11 @@ php-fpm配置文件：主配置文件：/srv/salt/nginx/files/etc/php-fpm.conf �
 
 ## 基于Saltstack部署系统搭建
 
-部署系统基于Salt Runner编写，Salt Runner使用salt-run命令执行的命令行工具，可以通过调用Salt API很轻松构建。Salt Runner与Salt的执行模块很想，但是再Salt Master上运行而非Salt Minion上。
+部署系统基于Salt Runner编写，Salt Runner使用salt-run命令执行的命令行工具，可以通过调用Salt API很轻松构建。Salt Runner与Salt的执行模块很像，但是在Salt Master上运行而非Salt Minion上。
 
-部署系统在Salt Master上把代码从SVN中检出，通过rsync命令部署到web前端。配置文件（/etc/salt/master.d/publish.conf）如下：
+### 配置Salt Master
+
+配置文件（/etc/salt/master.d/publish.conf）如下：
 
     svn:  
       username: 'publish'  # 定义svn用户名，用于检出代码  
@@ -619,7 +621,7 @@ php-fpm配置文件：主配置文件：/srv/salt/nginx/files/etc/php-fpm.conf �
 
 另外还要配置runner的放置目录：runner_dirs: [/srv/salt/_runners]，配置完成后要重启Puppet master。
 
-Web前端部署rsync服务：
+### Web前端部署rsync服务
 
 rsync服务由/srv/salt/rsync模块进行管理，rsync配置文件(etc/rsyncd.conf)如下：
 
@@ -642,7 +644,9 @@ rsync服务由/srv/salt/rsync模块进行管理，rsync配置文件(etc/rsyncd.c
     path=/data1/vhosts/www.mall.com/htdocs/  
     read only=no  
 
-编写脚本(/srv/salt/_runners/publish.py)：
+### 编写runner脚本
+
+部署系统在Salt Master上把代码从SVN中检出，通过rsync命令部署到web前端。runner脚本(/srv/salt/_runners/publish.py)如下：
 
 {% highlight python %}
 # -*- coding: utf-8 -*-
@@ -701,9 +705,9 @@ def push(project, output=True):
     return ret
 {% endhighlight %}
 
-注意，一个项目svn://172.16.100.81/www.mall.com 通常会建立三个目录子目录：trunk、branches、tags，上面脚本推送时只会将trunk目录下的代码部署到web前端。
+注意，一个项目（svn://172.16.100.81/www.mall.com ）通常会建立三个SVN子目录：trunk、branches、tags，上面脚本推送时只会将trunk目录下的代码部署到web前端。
 
-命令推送：
+### 代码部署
 
     # salt-run publish.push www.mall.com
 
@@ -720,14 +724,15 @@ publish为上文runner脚本名，push为此脚本中定义的推送函数，www
 本节参考了[绿肥](http://pengyao.org/)的《记saltstack和zabbix的一次联姻》，对zabbix添加监控脚本（add_monitors.py）进行部分修改而成，此脚本基于@超大杯摩卡星冰乐 同学的zapi进行更高级别的封装而成，在此表示感谢。
 
 整自动化监控的过程如下：  
-1. 通Saltstack安装Zabbix server、Zabbix web、Zabbix api、Zabbix agent以及各种服务；
+1. 通过Saltstack部署Zabbix server、Zabbix web、Zabbix api；  
 2. 完成安装后需要手动导入Zabbix监控模板；  
-3. Saltstack在安装完服务后通过Salt Mine将服务角色汇报给Salt Master；  
-4. Zabbix api拿到各服务角色后添加相应监控到Zabbix server。  
+3. 通过Saltstack部署服务及Zabbix agent；  
+4. Saltstack在安装完服务后通过Salt Mine将服务角色汇报给Salt Master；  
+5. Zabbix api拿到各服务角色后添加相应监控到Zabbix server。  
 
 [Salt Mine](http://docs.saltstack.com/en/latest/ref/modules/all/salt.modules.mine.html)用于将Salt Minion的信息存储到Salt Master，供其他Salt Minion使用。
 
-下面以对nginx模块的监控为例讲述整个监控过程，其中Zabbix服务（Zabbix server、Zabbix web、Zabbix api）安装使用/srv/salt/zabbix完成，服务器部署在admin.grid.mall.com上，在此不详细说明了。Zabbix agent使用/srv/salt/zabbix进行管理。nginx的管理使用/srv/salt/nginx模块进行管理。
+下面以对nginx模块的监控为例讲述整个监控过程，其中Zabbix服务（Zabbix server、Zabbix web、Zabbix api）安装使用/srv/salt/zabbix进行管理，服务器部署在admin.grid.mall.com上。Zabbix agent使用/srv/salt/zabbix进行管理。nginx使用/srv/salt/nginx模块进行管理。
 
 安装完nginx和php后定义相应地角色：
 
@@ -755,7 +760,7 @@ publish为上文runner脚本名，push为此脚本中定义的推送函数，www
         - watch_in:  
           - module: sync_grains 
 
-/srv/salt/nginx/monitor.sls用于配置对服务的监控：
+/srv/salt/nginx/monitor.sls用于配置zabbix agent和监控脚本：
 
     include:  
       - zabbix.agent  
@@ -822,7 +827,7 @@ Salt Minion收集各个角色到/etc/salt/roles中，并生成grains，Salt Mine
       test.ping: []
       grains.item: [id, hostgroup, roles, ipv4]
 
-grains类似puppetfacer，用于收集客户端相关的信息。本文grains脚本放置在/srv/salt/_grains/roles.py，通过读取/etc/salt/roles文件生成grains roles:
+grains类似puppet facer，用于收集客户端相关的信息。本文grains脚本（/srv/salt/_grains/roles.py）通过读取/etc/salt/roles文件生成grains roles:
 
 {% highlight python %}
 import os.path
@@ -844,17 +849,17 @@ if __name__ == "__main__":
     print roles()
 {% endhighlight %}
 
-Zabbix api的配置通过/srv/salt/zabbix/api.sls进行管理，主要完成对zapi的安装、Zabbix api角色的添加、Zabbix api配置文件的管理、添加监控脚本的管理已经更新监控配置并添加监控。此配置未实现zabbix模板的自动导入，所以需要手动导入模板。
+Zabbix api的配置通过/srv/salt/zabbix/api.sls进行管理，主要完成对zapi的安装、Zabbix api角色的添加、Zabbix api配置文件的管理、添加监控脚本的管理以及更新监控配置并添加监控。此配置未实现zabbix模板的自动导入，所以需要手动导入模板(/srv/salt/zabbix/files/etc/zabbix/api/templates/zbx_export_templates.xml)。
 
-[zabbix api 1](http://yoyolive.com/assets/images/14-06-16/zabbix_api_1.png)  
-[zabbix api 2](http://yoyolive.com/assets/images/14-06-16/zabbix_api_2.png)  
+![zabbix api 1](http://yoyolive.com/assets/images/14-06-16/zabbix_api_1.png)  
+![zabbix api 2](http://yoyolive.com/assets/images/14-06-16/zabbix_api_2.png)  
 
 
 上面配置读取/srv/pillar/zabbix/api.sls配置文件：
 
-[zabbix api pillar](http://yoyolive.com/assets/images/14-06-16/zabbix_api_pillar.png)  
+![zabbix api pillar](http://yoyolive.com/assets/images/14-06-16/zabbix_api_pillar.png)  
 
-zabbix-api变量中定义zabbix url、用户名、密码以及监控配置目录和模板目录等。zabbix-base-templates定义基本监控模板，基本监控模板是需要加到所有机器上的。zabbix-templates定义角色与模板的对应关系。
+zabbix-api中定义zabbix url、用户名、密码以及监控配置目录和模板目录等。zabbix-base-templates定义基本监控模板，基本监控模板是需要加到所有机器上的。zabbix-templates定义角色与模板的对应关系。
 
 
 添加监控脚本（/srv/salt/zabbix/files/etc/zabbix/api/add_monitors.py ）如下：
@@ -1141,9 +1146,11 @@ if __name__ == "__main__":
 
 ## Salt模块的扩展
 
-对Salt进行模块化设计就是为了扩展，另外将变量抽象出来放到pillar中也是为了模块可以多次应用。当你需要配置两个web平台，而这两个平台又有些许不同时你该怎么办？需要重新再写个nginx模块适配新的平台吗？
+对Salt进行模块化设计就是为了扩展，另外将变量抽象出来放到pillar中也是为了模块可以重用。当你需要配置两个web平台，而这两个平台又有些许不同时你该怎么办？需要重新再写个nginx模块适配新的平台吗？
 
-对于上面问题的回答肯定是否定的，我们无需再重新写一个nginx模块，我们只需要对新的平台传递新的配置文件，或者使用同一个模板传递不同的参数。
+对于上面问题的回答是否定的，我们无需再重新写一个nginx模块，我们只需要对新的平台传递新的配置文件或者使用同一个模板传递不同的参数。
+
+#### 使用不同的配置文件
 
 当两个平台配置相差比较大时可能传递一个不同的配置文件会更合适，如下：
 
@@ -1155,9 +1162,9 @@ if __name__ == "__main__":
         - group: root  
         - mode: 644  
 
-为不同的节点再pillar中配置不通rsync_template变量即可。
+为不同的节点在pillar中配置不同的rsync_template变量即可。
 
-使用同一个模板传递不同的参数：
+#### 使用同一个模板传递不同的参数
 
     /etc/keepalived/keepalived.conf:  
       file.managed:  

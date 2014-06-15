@@ -1,0 +1,5 @@
+[mysql]
+name = MySQL $releasever - $basearch
+baseurl = http://172.16.100.12:8000/mirrors/mysql/$releasever/$basearch/
+gpgcheck=0
+priority=1

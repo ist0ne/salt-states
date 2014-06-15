@@ -1,6 +1,6 @@
 [mall]
 name = mall $releasever - $basearch
-baseurl = http://172.16.100.81/mirrors/$releasever/$basearch/
+baseurl = http://172.16.100.81/mirrors/mall/$releasever/$basearch/
 gpgcheck=0
 priority=1
 
