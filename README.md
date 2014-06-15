@@ -5,7 +5,7 @@
 * [基础服务部署](http://yoyolive.com/saltstack/2014/05/29/saltstack-base-service.html)
 * [服务部署](http://yoyolive.com/saltstack/2014/06/14/saltstack-service.html)
 * [代码部署系统搭建](http://yoyolive.com/saltstack/2014/06/15/saltstack-publish.html)
-* [自动化监控](http://yoyolive.com/saltstack/2014/06/16/saltstack-pzabbix_monitor.html)
+* [自动化监控](http://yoyolive.com/saltstack/2014/06/16/saltstack-pzabbix-monitor.html)
 * [Salt模块的扩展](http://yoyolive.com/saltstack/2014/06/17/saltstack-expand.html)
 
 Salt state模块在CentOS 6.5，Saltstack 2014.1.4下测试。
