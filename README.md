@@ -259,65 +259,8 @@ admin.grid.mall.com
 
 /srv/salt/users/user.sls用于管理用户
 
-{% highlight ruby %}
-include:
-  - users.sudo
-
-{% for user, args in pillar['users'].iteritems() %}
-{{user}}:
-  group.present:
-    - gid: {{args['gid']}}
-  user.present:
-    - home: /home/{{user}}
-    - shell: {{args['shell']}}
-    - uid: {{args['uid']}}
-    - gid: {{args['gid']}}
-    - fullname: {{args['fullname']}}
-    {% if 'password' in args %}
-    - password: {{args['password']}}
-    {% endif %}
-    - require:
-      - group: {{user}}
-
-{% if 'sudo' in args %}
-{% if args['sudo'] %}
-sudoer-{{user}}:
-  file.append:
-    - name: /etc/sudoers
-    - text:
-      - '{{user}}  ALL=(ALL)       NOPASSWD: ALL'
-    - require:
-      - file: sudoers
-      - user: {{user}}
-{% endif %}
-{% endif %}
-
-{% if 'ssh_auth' in args %}
-/home/{{user}}/.ssh:
-  file.directory:
-    - user: {{user}}
-    - group: {{args['group']}}
-    - mode: 700
-    - require:
-      - user: {{user}}
-
-/home/{{user}}/.ssh/authorized_keys:
-  file.managed:
-    - user: {{user}}
-    - group: {{args['group']}}
-    - mode: 600
-    - require:
-      - file: /home/{{user}}/.ssh
-
-{{ args['ssh_auth']['key'] }}:
-  ssh_auth.present:
-    - user: {{user}}
-    - comment: {{args['ssh_auth']['comment']}}
-    - require:
-      - file: /home/{{user}}/.ssh/authorized_keys
-{% endif %}
-{% endfor %}
-{% endhighlight %}
+![user1定义](http://yoyolive.com/assets/images/14-05-29/user1.png)
+![user2定义](http://yoyolive.com/assets/images/14-05-29/user2.png)
 
 sudo.sls为用户添加sudo权限：
 
@@ -648,62 +591,60 @@ rsync服务由/srv/salt/rsync模块进行管理，rsync配置文件(etc/rsyncd.c
 
 部署系统在Salt Master上把代码从SVN中检出，通过rsync命令部署到web前端。runner脚本(/srv/salt/_runners/publish.py)如下：
 
-{% highlight python %}
-# -*- coding: utf-8 -*-
-'''
-Functions to publish code on the master
-'''
-
-# Import salt libs
-import salt.client
-import salt.output
-
-
-def push(project, output=True):
+    # -*- coding: utf-8 -*-
     '''
-    publish code to web server.
-
-    CLI Example:
-
-    .. code-block:: bash
-
-        salt-run publish.push project
+    Functions to publish code on the master
     '''
 
-    client = salt.client.LocalClient(__opts__['conf_file'])
-    ret = client.cmd(__opts__['publish']['master'],
-                      'svn.checkout',
-                       [
-                         __opts__['publish']['cwd'],
-                         __opts__['projects'][project]['remote']
-                       ],
-                       {
-                         'username': __opts__['svn']['username'],
-                         'password':__opts__['svn']['password']
-                       }
-                    )
+    # Import salt libs
+    import salt.client
+    import salt.output
 
-    msg = 'URL: %s\n%s' %(__opts__['projects'][project]['remote'], ret[__opts__['publish']['master']])
-    ret = {'Check out code': msg}
-    if output:
-        salt.output.display_output(ret, '', __opts__)
 
-    for target in __opts__['projects'][project]['target']:
-        cmd = '/usr/bin/rsync -avz --exclude=".svn" %s/%s/trunk/* %s/' %(__opts__['publish']['cwd'], project, target)
-        ret[target] = client.cmd(__opts__['publish']['master'],
-                           'cmd.run',
+    def push(project, output=True):
+        '''
+        publish code to web server.
+
+        CLI Example:
+
+        .. code-block:: bash
+
+            salt-run publish.push project
+        '''
+
+        client = salt.client.LocalClient(__opts__['conf_file'])
+        ret = client.cmd(__opts__['publish']['master'],
+                          'svn.checkout',
                            [
-                             cmd,
+                             __opts__['publish']['cwd'],
+                             __opts__['projects'][project]['remote']
                            ],
-                         )
+                           {
+                             'username': __opts__['svn']['username'],
+                             'password':__opts__['svn']['password']
+                           }
+                        )
 
-        title = '\nSending file to %s' %target.split(':')[0]
-        ret = {title: ret[target][__opts__['publish']['master']]}
+        msg = 'URL: %s\n%s' %(__opts__['projects'][project]['remote'], ret[__opts__['publish']['master']])
+        ret = {'Check out code': msg}
         if output:
             salt.output.display_output(ret, '', __opts__)
 
-    return ret
-{% endhighlight %}
+        for target in __opts__['projects'][project]['target']:
+            cmd = '/usr/bin/rsync -avz --exclude=".svn" %s/%s/trunk/* %s/' %(__opts__['publish']['cwd'], project, target)
+            ret[target] = client.cmd(__opts__['publish']['master'],
+                               'cmd.run',
+                               [
+                                 cmd,
+                               ],
+                             )
+
+            title = '\nSending file to %s' %target.split(':')[0]
+            ret = {title: ret[target][__opts__['publish']['master']]}
+            if output:
+                salt.output.display_output(ret, '', __opts__)
+
+        return ret
 
 注意，一个项目（svn://172.16.100.81/www.mall.com ）通常会建立三个SVN子目录：trunk、branches、tags，上面脚本推送时只会将trunk目录下的代码部署到web前端。
 
@@ -829,25 +770,23 @@ Salt Minion收集各个角色到/etc/salt/roles中，并生成grains，Salt Mine
 
 grains类似puppet facer，用于收集客户端相关的信息。本文grains脚本（/srv/salt/_grains/roles.py）通过读取/etc/salt/roles文件生成grains roles:
 
-{% highlight python %}
 import os.path
 
-def roles():
-    '''define host roles'''
+    def roles():
+        '''define host roles'''
 
-    roles_file = "/etc/salt/roles"
-    roles_list = []
-  
-    if os.path.isfile(roles_file):
-        roles_fd = open(roles_file, "r")
-        for eachroles in roles_fd:
-            roles_list.append(eachroles[:-1])
-    return {'roles': roles_list}
+        roles_file = "/etc/salt/roles"
+        roles_list = []
+      
+        if os.path.isfile(roles_file):
+            roles_fd = open(roles_file, "r")
+            for eachroles in roles_fd:
+                roles_list.append(eachroles[:-1])
+        return {'roles': roles_list}
 
 
-if __name__ == "__main__":
-    print roles()
-{% endhighlight %}
+    if __name__ == "__main__":
+        print roles()
 
 Zabbix api的配置通过/srv/salt/zabbix/api.sls进行管理，主要完成对zapi的安装、Zabbix api角色的添加、Zabbix api配置文件的管理、添加监控脚本的管理以及更新监控配置并添加监控。此配置未实现zabbix模板的自动导入，所以需要手动导入模板(/srv/salt/zabbix/files/etc/zabbix/api/templates/zbx_export_templates.xml)。
 
@@ -864,272 +803,271 @@ zabbix-api中定义zabbix url、用户名、密码以及监控配置目录和模
 
 添加监控脚本（/srv/salt/zabbix/files/etc/zabbix/api/add_monitors.py ）如下：
 
-{% highlight python %}
-#!/bin/env python
-#coding=utf8
 
-##########################################################
-# Add Monitor To Zabbix
-##########################################################
+    #!/bin/env python
+    #coding=utf8
 
-import sys, os.path
-import yaml
+    ##########################################################
+    # Add Monitor To Zabbix
+    ##########################################################
 
-from zabbix.zapi import *
+    import sys, os.path
+    import yaml
 
-def _config(config_file):
-    '''get config'''
-    
-    config_fd = open(config_file)
-    config = yaml.load(config_fd)
+    from zabbix.zapi import *
 
-    return config
+    def _config(config_file):
+        '''get config'''
+        
+        config_fd = open(config_file)
+        config = yaml.load(config_fd)
 
-def _get_templates(api_obj, templates_list):
-    '''get templates ids'''
+        return config
 
-    templates_id = {}
-    templates_result = api_obj.Template.getobjects({"host": templates_list})
-    
-    for each_template in templates_result:
-        template_name = each_template['name']
-        template_id = each_template['templateid']
-        templates_id[template_name] = template_id
+    def _get_templates(api_obj, templates_list):
+        '''get templates ids'''
 
-    return templates_id
+        templates_id = {}
+        templates_result = api_obj.Template.getobjects({"host": templates_list})
+        
+        for each_template in templates_result:
+            template_name = each_template['name']
+            template_id = each_template['templateid']
+            templates_id[template_name] = template_id
 
-def _get_host_templates(api_obj, hostid):
-    '''get the host has linked templates'''
+        return templates_id
 
-    templates_id = []
-    templates_result = api_obj.Template.get({'hostids': hostid})
-      
-    for each_template in templates_result:
-        template_id = each_template['templateid']
-        templates_id.append(template_id)
+    def _get_host_templates(api_obj, hostid):
+        '''get the host has linked templates'''
 
-    return templates_id
+        templates_id = []
+        templates_result = api_obj.Template.get({'hostids': hostid})
+          
+        for each_template in templates_result:
+            template_id = each_template['templateid']
+            templates_id.append(template_id)
+
+        return templates_id
 
 
-def _create_hostgroup(api_obj, group_name):
-    '''create hostgroup'''
+    def _create_hostgroup(api_obj, group_name):
+        '''create hostgroup'''
 
-    ##check hostgroup exists
-    hostgroup_status = api_obj.Hostgroup.exists({"name": "%s" %(group_name)}) 
-    if hostgroup_status:
-        print "Hostgroup(%s) is already exists" %(group_name)
-        group_id = api_obj.Hostgroup.getobjects({"name": "%s" %(group_name)})[0]["groupid"]
-    else:
-        hostgroup_status = api_obj.Hostgroup.create({"name": "%s" %(group_name)})
+        ##check hostgroup exists
+        hostgroup_status = api_obj.Hostgroup.exists({"name": "%s" %(group_name)}) 
         if hostgroup_status:
-            print "Hostgroup(%s) create success" %(group_name)
-            group_id = hostgroup_status["groupids"][0]
+            print "Hostgroup(%s) is already exists" %(group_name)
+            group_id = api_obj.Hostgroup.getobjects({"name": "%s" %(group_name)})[0]["groupid"]
         else:
-            sys.stderr.write("Hostgroup(%s) create failed, please connect administrator\n" %(group_name))
-            exit(2)
-
-    return group_id
-
-def _create_host(api_obj, hostname, hostip, group_ids):
-    '''create host'''
-
-    ##check host exists
-    host_status = api_obj.Host.exists({"name": "%s" %(hostname)})
-    if host_status:
-        print "Host(%s) is already exists" %(hostname)
-        hostid = api_obj.Host.getobjects({"name": "%s" %(hostname)})[0]["hostid"]
-        ##update host groups
-        groupids = [group['groupid'] for group in api_obj.Host.get({"output": ["hostid"], "selectGroups": "extend", "filter": {"host": ["%s" %(hostname)]}})[0]['groups']]
-        is_hostgroup_update = 0
-        for groupid in group_ids:
-            if groupid not in groupids:
-                is_hostgroup_update = 1
-                groupids.append(groupid)
-        if is_hostgroup_update == 1:
-            groups = []
-            for groupid in groupids:
-                groups.append({"groupid": "%s" %(groupid)})
-            host_status = api_obj.Host.update({"hostid": "%s" %(hostid), "groups": groups})
-            if host_status:
-                print "Host(%s) group update success" %(hostname)
+            hostgroup_status = api_obj.Hostgroup.create({"name": "%s" %(group_name)})
+            if hostgroup_status:
+                print "Hostgroup(%s) create success" %(group_name)
+                group_id = hostgroup_status["groupids"][0]
             else:
-                sys.stderr.write("Host(%s) group update failed, please connect administrator\n" %(hostname))
-                exit(3)
-    else:
-        groups = []
-        for groupid in group_ids:
-            groups.append({"groupid": "%s" %(groupid)})
-        host_status = api_obj.Host.create({"host": "%s" %(hostname), "interfaces": [{"type": 1, "main": 1, "useip": 1, "ip": "%s" %(hostip), "dns": "", "port": "10050"}], "groups": groups})
+                sys.stderr.write("Hostgroup(%s) create failed, please connect administrator\n" %(group_name))
+                exit(2)
+
+        return group_id
+
+    def _create_host(api_obj, hostname, hostip, group_ids):
+        '''create host'''
+
+        ##check host exists
+        host_status = api_obj.Host.exists({"name": "%s" %(hostname)})
         if host_status:
-            print "Host(%s) create success" %(hostname)
-            hostid = host_status["hostids"][0] 
+            print "Host(%s) is already exists" %(hostname)
+            hostid = api_obj.Host.getobjects({"name": "%s" %(hostname)})[0]["hostid"]
+            ##update host groups
+            groupids = [group['groupid'] for group in api_obj.Host.get({"output": ["hostid"], "selectGroups": "extend", "filter": {"host": ["%s" %(hostname)]}})[0]['groups']]
+            is_hostgroup_update = 0
+            for groupid in group_ids:
+                if groupid not in groupids:
+                    is_hostgroup_update = 1
+                    groupids.append(groupid)
+            if is_hostgroup_update == 1:
+                groups = []
+                for groupid in groupids:
+                    groups.append({"groupid": "%s" %(groupid)})
+                host_status = api_obj.Host.update({"hostid": "%s" %(hostid), "groups": groups})
+                if host_status:
+                    print "Host(%s) group update success" %(hostname)
+                else:
+                    sys.stderr.write("Host(%s) group update failed, please connect administrator\n" %(hostname))
+                    exit(3)
         else:
-            sys.stderr.write("Host(%s) create failed, please connect administrator\n" %(hostname))
+            groups = []
+            for groupid in group_ids:
+                groups.append({"groupid": "%s" %(groupid)})
+            host_status = api_obj.Host.create({"host": "%s" %(hostname), "interfaces": [{"type": 1, "main": 1, "useip": 1, "ip": "%s" %(hostip), "dns": "", "port": "10050"}], "groups": groups})
+            if host_status:
+                print "Host(%s) create success" %(hostname)
+                hostid = host_status["hostids"][0] 
+            else:
+                sys.stderr.write("Host(%s) create failed, please connect administrator\n" %(hostname))
+                exit(3)
+
+        return hostid
+
+    def _create_host_usermacro(api_obj, hostname, usermacro):
+        '''create host usermacro'''
+
+        for macro in usermacro.keys():
+            value = usermacro[macro]
+
+        ##check host exists
+        host_status = api_obj.Host.exists({"name": "%s" %(hostname)})
+        if host_status:
+            hostid = api_obj.Host.getobjects({"name": "%s" %(hostname)})[0]["hostid"]
+            ##check usermacro exists
+            usermacros = api_obj.Usermacro.get({"output": "extend", "hostids": "%s" %(hostid)})
+            is_macro_exists = 0
+            if usermacros:
+                for usermacro in usermacros:
+                    if usermacro["macro"] == macro:
+                        is_macro_exists = 1
+                        if usermacro["value"] == str(value):
+                            print "Host(%s) usermacro(%s) is already exists" %(hostname, macro)
+                            hostmacroid = usermacro["hostmacroid"]
+                        else:
+                            ##usermacro exists, but value is not the same, update
+                            usermacro_status = api_obj.Usermacro.update({"hostmacroid": usermacro["hostmacroid"], "value": "%s" %(value)})
+                            if usermacro_status:
+                                print "Host(%s) usermacro(%s) update success" %(hostname, macro)
+                                hostmacroid = usermacro_status["hostmacroids"][0]
+                            else:
+                                sys.stderr.write("Host(%s) usermacro(%s) update failed, please connect administrator\n" %(hostname, macro))
+                                exit(3)
+                        break
+            if is_macro_exists == 0:
+                usermacro_status = api_obj.Usermacro.create({"hostid": "%s" %(hostid), "macro": "%s" %(macro), "value": "%s" %(value)})
+                if usermacro_status:
+                    print "Host(%s) usermacro(%s) create success" %(hostname, macro)
+                    hostmacroid = usermacro_status["hostmacroids"][0]
+                else:
+                    sys.stderr.write("Host(%s) usermacro(%s) create failed, please connect administrator\n" %(hostname, macro))
+                    exit(3)
+        else:
+            sys.stderr.write("Host(%s) is not exists" %(hostname))
             exit(3)
 
-    return hostid
+        return hostmacroid
 
-def _create_host_usermacro(api_obj, hostname, usermacro):
-    '''create host usermacro'''
+    def _link_templates(api_obj, hostname, hostid, templates_list, donot_unlink_templates):
+        '''link templates'''
 
-    for macro in usermacro.keys():
-        value = usermacro[macro]
-
-    ##check host exists
-    host_status = api_obj.Host.exists({"name": "%s" %(hostname)})
-    if host_status:
-        hostid = api_obj.Host.getobjects({"name": "%s" %(hostname)})[0]["hostid"]
-        ##check usermacro exists
-        usermacros = api_obj.Usermacro.get({"output": "extend", "hostids": "%s" %(hostid)})
-        is_macro_exists = 0
-        if usermacros:
-            for usermacro in usermacros:
-                if usermacro["macro"] == macro:
-                    is_macro_exists = 1
-                    if usermacro["value"] == str(value):
-                        print "Host(%s) usermacro(%s) is already exists" %(hostname, macro)
-                        hostmacroid = usermacro["hostmacroid"]
-                    else:
-                        ##usermacro exists, but value is not the same, update
-                        usermacro_status = api_obj.Usermacro.update({"hostmacroid": usermacro["hostmacroid"], "value": "%s" %(value)})
-                        if usermacro_status:
-                            print "Host(%s) usermacro(%s) update success" %(hostname, macro)
-                            hostmacroid = usermacro_status["hostmacroids"][0]
-                        else:
-                            sys.stderr.write("Host(%s) usermacro(%s) update failed, please connect administrator\n" %(hostname, macro))
-                            exit(3)
-                    break
-        if is_macro_exists == 0:
-            usermacro_status = api_obj.Usermacro.create({"hostid": "%s" %(hostid), "macro": "%s" %(macro), "value": "%s" %(value)})
-            if usermacro_status:
-                print "Host(%s) usermacro(%s) create success" %(hostname, macro)
-                hostmacroid = usermacro_status["hostmacroids"][0]
-            else:
-                sys.stderr.write("Host(%s) usermacro(%s) create failed, please connect administrator\n" %(hostname, macro))
-                exit(3)
-    else:
-        sys.stderr.write("Host(%s) is not exists" %(hostname))
-        exit(3)
-
-    return hostmacroid
-
-def _link_templates(api_obj, hostname, hostid, templates_list, donot_unlink_templates):
-    '''link templates'''
-
-    all_templates = []
-    clear_templates = []
-    ##get templates id
-    if donot_unlink_templates is None:
-        donot_unlink_templates_id = {}
-    else:
-        donot_unlink_templates_id = _get_templates(api_obj, donot_unlink_templates)
-    templates_id = _get_templates(api_obj, templates_list) 
-    ##get the host currently linked tempaltes
-    curr_linked_templates = _get_host_templates(api_obj, hostid)
-    
-    for each_template in templates_id:
-        if templates_id[each_template] in curr_linked_templates:
-            print "Host(%s) is already linked %s" %(hostname, each_template)
+        all_templates = []
+        clear_templates = []
+        ##get templates id
+        if donot_unlink_templates is None:
+            donot_unlink_templates_id = {}
         else:
-            print "Host(%s) will link %s" %(hostname, each_template)
-        all_templates.append(templates_id[each_template])
-    
-    ##merge templates list
-    for each_template in curr_linked_templates:
-        if each_template not in all_templates:
-            if each_template in donot_unlink_templates_id.values():
-                all_templates.append(each_template)
+            donot_unlink_templates_id = _get_templates(api_obj, donot_unlink_templates)
+        templates_id = _get_templates(api_obj, templates_list) 
+        ##get the host currently linked tempaltes
+        curr_linked_templates = _get_host_templates(api_obj, hostid)
+        
+        for each_template in templates_id:
+            if templates_id[each_template] in curr_linked_templates:
+                print "Host(%s) is already linked %s" %(hostname, each_template)
             else:
-                clear_templates.append(each_template)
+                print "Host(%s) will link %s" %(hostname, each_template)
+            all_templates.append(templates_id[each_template])
+        
+        ##merge templates list
+        for each_template in curr_linked_templates:
+            if each_template not in all_templates:
+                if each_template in donot_unlink_templates_id.values():
+                    all_templates.append(each_template)
+                else:
+                    clear_templates.append(each_template)
 
 
-    ##convert to zabbix api style
-    templates_list = []
-    clear_templates_list = []
-    for each_template in all_templates:
-        templates_list.append({"templateid": each_template})
-    for each_template in clear_templates:
-        clear_templates_list.append({"templateid": each_template})
+        ##convert to zabbix api style
+        templates_list = []
+        clear_templates_list = []
+        for each_template in all_templates:
+            templates_list.append({"templateid": each_template})
+        for each_template in clear_templates:
+            clear_templates_list.append({"templateid": each_template})
 
 
-    ##update host to link templates
-    update_status = api_obj.Host.update({"hostid": hostid, "templates": templates_list})
+        ##update host to link templates
+        update_status = api_obj.Host.update({"hostid": hostid, "templates": templates_list})
 
-    if update_status:
-        print "Host(%s) link templates success" %(hostname)
-    else:
-        print "Host(%s) link templates failed, please contact administrator" %(hostname)
-
-    ##host unlink templates
-    if clear_templates_list != []:
-        clear_status = api_obj.Host.update({"hostid": hostid, "templates_clear": clear_templates_list})
-        if clear_status:
-            print "Host(%s) unlink templates success" %(hostname)
+        if update_status:
+            print "Host(%s) link templates success" %(hostname)
         else:
-            print "Host(%s) unlink templates failed, please contact administrator" %(hostname)
+            print "Host(%s) link templates failed, please contact administrator" %(hostname)
+
+        ##host unlink templates
+        if clear_templates_list != []:
+            clear_status = api_obj.Host.update({"hostid": hostid, "templates_clear": clear_templates_list})
+            if clear_status:
+                print "Host(%s) unlink templates success" %(hostname)
+            else:
+                print "Host(%s) unlink templates failed, please contact administrator" %(hostname)
 
 
-def _main():
-    '''main function'''
-  
-    hosts = [] 
-    if len(sys.argv) > 1:
-        hosts = sys.argv[1:]
-    
-    config_dir = os.path.dirname(sys.argv[0])
-    if config_dir:
-        config_file = config_dir+"/"+"config.yaml"
-    else:
-        config_file = "config.yaml"
+    def _main():
+        '''main function'''
+      
+        hosts = [] 
+        if len(sys.argv) > 1:
+            hosts = sys.argv[1:]
+        
+        config_dir = os.path.dirname(sys.argv[0])
+        if config_dir:
+            config_file = config_dir+"/"+"config.yaml"
+        else:
+            config_file = "config.yaml"
 
-    ###get config options
-    config = _config(config_file)
-    Monitor_DIR = config["Monitors_DIR"]
-    Zabbix_URL = config["Zabbix_URL"]
-    Zabbix_User = config["Zabbix_User"]
-    Zabbix_Pass = config["Zabbix_Pass"]
-    Zabbix_Donot_Unlink_Template = config["Zabbix_Donot_Unlink_Template"]
+        ###get config options
+        config = _config(config_file)
+        Monitor_DIR = config["Monitors_DIR"]
+        Zabbix_URL = config["Zabbix_URL"]
+        Zabbix_User = config["Zabbix_User"]
+        Zabbix_Pass = config["Zabbix_Pass"]
+        Zabbix_Donot_Unlink_Template = config["Zabbix_Donot_Unlink_Template"]
 
-    if not hosts:
-        hosts = os.listdir(Monitor_DIR)
+        if not hosts:
+            hosts = os.listdir(Monitor_DIR)
 
-    ###Login Zabbix 
-    zapi = ZabbixAPI(url=Zabbix_URL, user=Zabbix_User, password=Zabbix_Pass)
-    zapi.login()
+        ###Login Zabbix 
+        zapi = ZabbixAPI(url=Zabbix_URL, user=Zabbix_User, password=Zabbix_Pass)
+        zapi.login()
 
-    for each_host in hosts:
-        each_config_fd = open(Monitor_DIR+"/"+each_host) 
-        each_config = yaml.load(each_config_fd)
-     
-        ##Get config options
-        each_ip = each_config["IP"]
-        hostgroups = each_config["Hostgroup"]
-        each_templates = each_config["Templates"]
-        each_usermacros = each_config["Usermacros"]
+        for each_host in hosts:
+            each_config_fd = open(Monitor_DIR+"/"+each_host) 
+            each_config = yaml.load(each_config_fd)
+         
+            ##Get config options
+            each_ip = each_config["IP"]
+            hostgroups = each_config["Hostgroup"]
+            each_templates = each_config["Templates"]
+            each_usermacros = each_config["Usermacros"]
 
-        ###Create Hostgroup
-        groupids = []
-        for each_hostgroup in hostgroups:
-            group_id = _create_hostgroup(zapi, each_hostgroup)
-            groupids.append(group_id)
+            ###Create Hostgroup
+            groupids = []
+            for each_hostgroup in hostgroups:
+                group_id = _create_hostgroup(zapi, each_hostgroup)
+                groupids.append(group_id)
 
-        ##Create Host
-        hostid = _create_host(zapi, each_host, each_ip, groupids)
+            ##Create Host
+            hostid = _create_host(zapi, each_host, each_ip, groupids)
 
-        if each_usermacros:
-            ##Create Host Usermacros
-            for usermacro in each_usermacros:
-                if usermacro:
-                    usermacrosid = _create_host_usermacro(zapi, each_host, usermacro)
-    
-        if each_templates:
-            ##Link tempaltes
-            _link_templates(zapi, each_host, hostid, each_templates, Zabbix_Donot_Unlink_Template)
-           
+            if each_usermacros:
+                ##Create Host Usermacros
+                for usermacro in each_usermacros:
+                    if usermacro:
+                        usermacrosid = _create_host_usermacro(zapi, each_host, usermacro)
+        
+            if each_templates:
+                ##Link tempaltes
+                _link_templates(zapi, each_host, hostid, each_templates, Zabbix_Donot_Unlink_Template)
+               
 
-if __name__ == "__main__":
-    _main()
-{% endhighlight %}
+    if __name__ == "__main__":
+        _main()
 
 参考：[zabbix api](https://www.zabbix.com/documentation/2.2/manual/api)
 
