@@ -770,7 +770,7 @@ Salt Minion收集各个角色到/etc/salt/roles中，并生成grains，Salt Mine
 
 grains类似puppet facer，用于收集客户端相关的信息。本文grains脚本（/srv/salt/_grains/roles.py）通过读取/etc/salt/roles文件生成grains roles:
 
-import os.path
+    import os.path
 
     def roles():
         '''define host roles'''
