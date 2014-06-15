@@ -255,7 +255,7 @@ Saltstack源码地址：https://github.com/saltstack/salt，最新版本为v2014
 
 获取admin.grid.mall.com上面定义的所有pillar变量： 
 
->\# salt 'admin.grid.mall.com' pillar.items
+    # salt 'admin.grid.mall.com' pillar.items
 
 添加用户： 
 
@@ -286,8 +286,9 @@ sudo.sls为用户添加sudo权限：
           comment: dongliang@mall.com 
 
 在salt-master上执行下面命令使配置生效  
-> \# salt '*' saltutil.refresh_pillar  
-> \# salt '*' state.highstate
+
+    # salt '*' saltutil.refresh_pillar  
+    # salt '*' state.highstate
 
 
 ### yum配置管理
