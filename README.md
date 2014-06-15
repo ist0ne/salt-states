@@ -8,6 +8,8 @@
 * [自动化监控](http://yoyolive.com/saltstack/2014/06/16/saltstack-pzabbix_monitor.html)
 * [Salt模块的扩展](http://yoyolive.com/saltstack/2014/06/17/saltstack-expand.html)
 
+Salt state模块在CentOS 6.5，Saltstack 2014.1.4下测试。
+
 ## 网站架构介绍
 
 ### 网络架构

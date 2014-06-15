@@ -59,7 +59,7 @@ monitor-{{each_minion}}:
     - makedirs: True
     - template: jinja
     - defaults:
-        IP: {{each_mine.ipv4[0]}}
+        IP: {{each_mine.ipv4[1]}}
         Hostgroup: {{each_mine.hostgroup}}
         Roles: {{each_mine.roles}}
         Templates: {{pillar['zabbix-templates']}}
