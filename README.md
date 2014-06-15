@@ -104,19 +104,19 @@ Saltstack源码地址：https://github.com/saltstack/salt，最新版本为v2014
 
 安装salt-master：
 
->\# yum install -y salt-master
+    # yum install -y salt-master
 
 修改配置文件：/etc/salt/master，使salt监听在内网网卡上。
 
->interface: 172.16.100.81
+    interface: 172.16.100.81
 
 启动Salt Master：
 
->\# /etc/init.d/salt-master start
+    # /etc/init.d/salt-master start
 
 查看启动情况，4505端口处于监听状态：
 
->\# netstat -tunlp |grep 4505
+    # netstat -tunlp |grep 4505
 
 ### Salt Minion安装
 
@@ -124,33 +124,33 @@ Saltstack源码地址：https://github.com/saltstack/salt，最新版本为v2014
 
 安装salt-minion：
 
->\# yum install -y salt-minion
+    # yum install -y salt-minion
 
 修改配置文件：/etc/salt/minion，使其连接到master。
 
->master: 172.16.100.81
+    master: 172.16.100.81
 
 启动Salt Minion：
 
->\# /etc/init.d/salt-minion start
+    # /etc/init.d/salt-minion start
 
 查看启动情况，4506端口处于监听状态：
 
->\# netstat -tunlp |grep 4506
+    # netstat -tunlp |grep 4506
 
 ### 在Salt Master上为Salt Minion授权
 
 查看Salt Minion是否已经向Salt Master请求授权：
 
->\# salt-key -L  
-Accepted Keys:  
-Unaccepted Keys:  
-admin.grid.mall.com  
+    # salt-key -L  
+    Accepted Keys:  
+    Unaccepted Keys:  
+    admin.grid.mall.com  
 
 
 为Salt Minion授权：
 
->\# salt-key -a admin.grid.mall.com
+    # salt-key -a admin.grid.mall.com
 
 ## 基础服务部署
 
