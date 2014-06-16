@@ -805,14 +805,18 @@ rsync服务由/srv/salt/rsync模块进行管理，rsync配置文件(etc/rsyncd.c
                              __opts__['publish']['cwd'],
                              __opts__['projects'][project]['remote']
                            ],
-                           {
-                             'username': __opts__['svn']['username'],
-                             'password':__opts__['svn']['password']
-                           }
+                           kwarg={
+                                   'target':project,
+                                   'username':__opts__['svn']['username'],
+                                   'password':__opts__['svn']['password']
+                                 }
                         )
 
-        msg = 'URL: %s\n%s' %(__opts__['projects'][project]['remote'], ret[__opts__['publish']['master']])
-        ret = {'Check out code': msg}
+        if ret:
+            msg = 'URL: %s\n%s' %(__opts__['projects'][project]['remote'], ret[__opts__['publish']['master']])
+            ret = {'Check out code': msg}
+        else:
+            ret = {'Check out code': 'Timeout, try again.'}
         if output:
             salt.output.display_output(ret, '', __opts__)
 
