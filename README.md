@@ -319,9 +319,6 @@ Saltstack源码地址：https://github.com/saltstack/salt，最新版本为v2014
     {% endif %}
     {% endfor %}
 
-![user1定义](http://yoyolive.com/assets/images/14-05-29/user1.png)
-![user2定义](http://yoyolive.com/assets/images/14-05-29/user2.png)
-
 sudo.sls为用户添加sudo权限：
 
     sudoers:  
@@ -469,12 +466,140 @@ php-fpm配置文件：主配置文件：/srv/salt/nginx/files/etc/php-fpm.conf �
 
 /srv/salt/nginx/server.sls用于配置nginx服务：
 
-定义nginx相关配置，主要包括安装nginx软件包配置相关配置文件，并启动nginx服务。  
-![nginx server 1](http://yoyolive.com/assets/images/14-06-14/nginx_server_1.png)
+    include:
+      - users.sudo
 
-创建日志目录、代码发布目录、代码缓存目录。并配置服务角色，角色也用于对服务的监控，详见后文自动化监控。  
-![nginx server 2](http://yoyolive.com/assets/images/14-06-14/nginx_server_2.png)
+    {% for user, args in pillar['users'].iteritems() %}
+    {{user}}:
+      group.present:
+        - gid: {{args['gid']}}
+      user.present:
+        - home: /home/{{user}}
+        - shell: {{args['shell']}}
+        - uid: {{args['uid']}}
+        - gid: {{args['gid']}}
+        - fullname: {{args['fullname']}}
+        {% if 'password' in args %}
+        - password: {{args['password']}}
+        {% endif %}
+        - require:
+          - group: {{user}}
 
+    {% if 'sudo' in args %}
+    {% if args['sudo'] %}
+    sudoer-{{user}}:
+      file.append:
+        - name: /etc/sudoers
+        - text:
+          - '{{user}}  ALL=(ALL)       NOPASSWD: ALL'
+        - require:
+          - file: sudoers
+          - user: {{user}}
+    {% endif %}
+    {% endif %}
+
+    {% if 'ssh_auth' in args %}
+    /home/{{user}}/.ssh:
+      file.directory:
+        - user: {{user}}
+        - group: {{args['group']}}
+        - mode: 700
+        - require:
+          - user: {{user}}
+
+    /home/{{user}}/.ssh/authorized_keys:
+      file.managed:
+        - user: {{user}}
+        - group: {{args['group']}}
+        - mode: 600
+        - require:
+          - file: /home/{{user}}/.ssh
+
+    {{ args['ssh_auth']['key'] }}:
+      ssh_auth.present:
+        - user: {{user}}
+        - comment: {{args['ssh_auth']['comment']}}
+        - require:
+          - file: /home/{{user}}/.ssh/authorized_keys
+    {% endif %}
+    {% endfor %}
+    Stone:salt dongliang$ cat nginx/server.sls
+    include:
+      - zabbix.agent
+      - salt.minion
+
+    nginx:
+      pkg:
+        - name: nginx
+        - installed
+      service:
+        - name: nginx
+        - running
+        - require:
+          - pkg: nginx
+        - watch:
+          - pkg: nginx
+          - file: /etc/nginx/nginx.conf
+          - file: /etc/nginx/conf.d/
+
+    /etc/nginx/nginx.conf:
+      file.managed:
+        - source: salt://nginx/files/etc/nginx/nginx.conf
+        - template: jinja
+        - user: root
+        - group: root
+        - mode: 644
+        - backup: minion
+
+    /etc/nginx/conf.d/:
+      file.recurse:
+        - source: salt://nginx/files/etc/nginx/conf.d/
+        - template: jinja
+        - user: root
+        - group: root
+        - dir_mode: 755
+        - file_mode: 644
+
+    {% set logdir = salt['pillar.get']('logdir', '/var/log/nginx') %}
+    {{logdir}}:
+      cmd.run:
+        - name: mkdir -p {{logdir}}
+        - unless: test -d {{logdir}}
+        - require:
+          - pkg: nginx
+
+    {% if salt['pillar.get']('vhosts', false) %}
+    {% set dir = salt['pillar.get']('vhostsdir', '/var/www/html') %}
+    {% set cachedir = salt['pillar.get']('vhostscachedir', '/var/www/cache') %}
+    {% for vhost in pillar['vhosts'] %}
+    {{dir}}/{{vhost}}/htdocs:
+      cmd.run:
+        - name: mkdir -p {{dir}}/{{vhost}}/htdocs && chown -R nobody.nobody {{dir}}/{{vhost}}/htdocs
+        - unless: test -d {{dir}}/{{vhost}}/htdocs
+        - require:
+          - pkg: nginx
+    {{cachedir}}/{{vhost}}:
+      cmd.run:
+        - name: mkdir -p {{cachedir}}/{{vhost}} && chown -R nginx.nginx {{cachedir}}/{{vhost}}
+        - unless: test -d {{cachedir}}/{{vhost}}
+        - require:
+          - pkg: nginx
+    {% endfor %}
+    {% endif %}
+
+    nginx-role:
+      file.append:
+        - name: /etc/salt/roles
+        - text:
+          - 'nginx'
+        - require:
+          - file: roles
+          - service: nginx
+          - service: salt-minion
+        - watch_in:
+          - module: sync_grains
+
+管理nginx相关配置，主要包括安装nginx软件包配置相关配置文件，并启动nginx服务。创建日志目录、代码发布目录、代码缓存目录。并配置服务角色，角色也用于对服务的监控，详见后文自动化监控。  
 
 /srv/salt/nginx/php.sls用于配置php服务：
 
@@ -851,13 +976,107 @@ grains类似puppet facer，用于收集客户端相关的信息。本文grains�
 
 Zabbix api的配置通过/srv/salt/zabbix/api.sls进行管理，主要完成对zapi的安装、Zabbix api角色的添加、Zabbix api配置文件的管理、添加监控脚本的管理以及更新监控配置并添加监控。此配置未实现zabbix模板的自动导入，所以需要手动导入模板(/srv/salt/zabbix/files/etc/zabbix/api/templates/zbx_export_templates.xml)。
 
-![zabbix api 1](http://yoyolive.com/assets/images/14-06-16/zabbix_api_1.png)  
-![zabbix api 2](http://yoyolive.com/assets/images/14-06-16/zabbix_api_2.png)  
+    include:
+      - salt.minion
 
+    python-zabbix-zapi:
+      file.recurse:
+        - name: /usr/lib/python2.6/site-packages/zabbix
+        - source: salt://zabbix/files/usr/lib/python2.6/site-packages/zabbix
+        - include_empty: True
+
+
+    zabbix-api-role:
+      file.append:
+        - name: /etc/salt/roles
+        - text:
+          - 'zabbix-api'
+        - require:
+          - file: roles
+          - service: salt-minion
+          - file: python-zabbix-zapi
+        - watch_in:
+          - module: sync_grains 
+
+    zabbix-api-config:
+      file.managed:
+        - name: /etc/zabbix/api/config.yaml
+        - source: salt://zabbix/files/etc/zabbix/api/config.yaml
+        - makedirs: True
+        - template: jinja
+        - defaults:
+            Monitors_DIR: {{pillar['zabbix-api']['Monitors_DIR']}}
+            Templates_DIR: {{pillar['zabbix-api']['Templates_DIR']}}
+            Zabbix_User: {{pillar['zabbix-api']['Zabbix_User']}}
+            Zabbix_Pass: {{pillar['zabbix-api']['Zabbix_Pass']}}
+            Zabbix_URL: {{pillar['zabbix-api']['Zabbix_URL']}}
+
+    zabbix-templates:
+      file.recurse:
+        - name: {{pillar['zabbix-api']['Templates_DIR']}}
+        - source: salt://zabbix/files/etc/zabbix/api/templates
+        - require:
+          - file: python-zabbix-zapi
+          - file: zabbix-api-config
+
+    zabbix-add-monitors-script:
+      file.managed:
+        - name: /etc/zabbix/api/add_monitors.py
+        - source: salt://zabbix/files/etc/zabbix/api/add_monitors.py
+        - makedirs: True
+        - mode: 755
+        - require:
+          - file: python-zabbix-zapi
+          - file: zabbix-api-config 
+
+    {% for each_minion, each_mine in salt['mine.get']('*', 'grains.item').iteritems() %}
+    monitor-{{each_minion}}:
+      file.managed:
+        - name: {{pillar['zabbix-api']['Monitors_DIR']}}/{{each_minion}}
+        - source: salt://zabbix/files/etc/zabbix/api/monitors/minion
+        - makedirs: True
+        - template: jinja
+        - defaults:
+            IP: {{each_mine.ipv4[1]}}
+            Hostgroup: {{each_mine.hostgroup}}
+            Roles: {{each_mine.roles}}
+            Templates: {{pillar['zabbix-templates']}}
+        - order: last
+        - require:
+          - module: mine_update
+      cmd.wait:
+        - name: python /etc/zabbix/api/add_monitors.py {{each_minion}}
+        - require:
+          - file: zabbix-add-monitors-script
+        - watch:
+           - file: monitor-{{each_minion}}
+    {% endfor %} 
 
 上面配置读取/srv/pillar/zabbix/api.sls配置文件：
 
-![zabbix api pillar](http://yoyolive.com/assets/images/14-06-16/zabbix_api_pillar.png)  
+    zabbix-api:
+      Zabbix_URL: http://172.16.100.81/zabbix
+      Zabbix_User: admin
+      Zabbix_Pass: zabbix
+      Monitors_DIR: /etc/zabbix/api/monitors/
+      Templates_DIR: /etc/zabbix/api/templates/
+     
+    zabbix-base-templates:
+      {% if grains['os_family'] == 'RedHat' or grains['os_family'] == 'Debian' %}
+      - 'Template OS Linux'
+      {% endif %}
+
+    zabbix-templates:
+      memcached: 'Template App Memcached'
+      zabbix-server: 'Template App Zabbix Server'
+      web-server: 'Template App HTTP Service'
+      mysql: 'Template App MySQL'
+      mysql-master: 'Template App MySQL'
+      mysql-slave: 'Template App MySQL Slave'
+      php-fpm: 'Template App PHP FPM'
+      nginx: 'Template App Nginx'
+      varnish: 'Template App Varnish'
+      redis: 'Template App Redis'
 
 zabbix-api中定义zabbix url、用户名、密码以及监控配置目录和模板目录等。zabbix-base-templates定义基本监控模板，基本监控模板是需要加到所有机器上的。zabbix-templates定义角色与模板的对应关系。
 
