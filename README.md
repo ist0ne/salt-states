@@ -667,7 +667,7 @@ publish为上文runner脚本名，push为此脚本中定义的推送函数，www
 
 本节参考了[绿肥](http://pengyao.org/)的《记saltstack和zabbix的一次联姻》，对zabbix添加监控脚本（add_monitors.py）进行部分修改而成，此脚本基于@超大杯摩卡星冰乐 同学的zapi进行更高级别的封装而成，在此表示感谢。
 
-整自动化监控的过程如下：  
+自动化监控的过程如下：  
 1. 通过Saltstack部署Zabbix server、Zabbix web、Zabbix api；  
 2. 完成安装后需要手动导入Zabbix监控模板；  
 3. 通过Saltstack部署服务及Zabbix agent；  
@@ -676,9 +676,9 @@ publish为上文runner脚本名，push为此脚本中定义的推送函数，www
 
 [Salt Mine](http://docs.saltstack.com/en/latest/ref/modules/all/salt.modules.mine.html)用于将Salt Minion的信息存储到Salt Master，供其他Salt Minion使用。
 
-下面以对nginx模块的监控为例讲述整个监控过程，其中Zabbix服务（Zabbix server、Zabbix web、Zabbix api）安装使用/srv/salt/zabbix进行管理，服务器部署在admin.grid.mall.com上。Zabbix agent使用/srv/salt/zabbix进行管理。nginx使用/srv/salt/nginx模块进行管理。
+下面以对nginx模块的监控为例讲述整个监控过程，其中Zabbix服务（Zabbix server、Zabbix web、Zabbix api）安装使用/srv/salt/zabbix进行管理，服务部署在admin.grid.mall.com上。Zabbix agent使用/srv/salt/zabbix进行管理。nginx使用/srv/salt/nginx模块进行管理。
 
-安装完nginx和php后定义相应地角色：
+安装完nginx和php后定义相应的角色：
 
     nginx-role:  
       file.append:  
